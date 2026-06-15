@@ -113,6 +113,11 @@
   .chip{border:1px solid var(--line);background:var(--card);color:var(--sub);border-radius:999px;padding:7px 13px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}
   .chip:active{transform:scale(.94);}
   .chipon{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .plainbtn{background:none;border:none;padding:0;cursor:pointer;flex-shrink:0;display:grid;place-items:center;}
+  .qstep{display:flex;gap:6px;flex-shrink:0;}
+  .qbtn{width:32px;height:32px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);display:grid;place-items:center;cursor:pointer;transition:transform .12s;}
+  .qbtn:active{transform:scale(.9);}
+  .qbtn:disabled{opacity:.35;cursor:default;}
   .goalnum{font-size:26px;font-weight:700;line-height:1;}
   .goalsub{font-size:11.5px;color:var(--sub);margin-top:3px;}
   .goalhelp{font-size:12px;color:var(--sub);margin:0 0 18px;}
@@ -160,6 +165,8 @@ function relativeLabel(key){
 
 /* ============================ habit + progress =========================== */
 function goalOf(h){return Math.max(1,h.goal||1);}
+function habitType(h){return h.type||(goalOf(h)>1?"count":"binary");}
+function isCount(h){return habitType(h)==="count";}
 var UNIT_PRESETS=["times","sets","reps","pages","cups","glasses","minutes","hours","km","steps"];
 var UNIT_SINGULAR={times:"time",sets:"set",reps:"rep",pages:"page",cups:"cup",glasses:"glass",minutes:"minute",hours:"hour",km:"km",steps:"step",miles:"mile",laps:"lap",chapters:"chapter",liters:"liter",pomodoros:"pomodoro"};
 function unitLabel(n,unit){
@@ -234,10 +241,10 @@ function save(){ try{ localStorage.setItem(KEY, JSON.stringify({habits:state.hab
 function seed(){
   var start=fmtKey(addDays(new Date(),-34));
   var habits=[
-    {id:"h1",name:"Drink water",goal:8,unit:"cups",freq:"daily",days:[],startDate:start,endDate:null},
-    {id:"h2",name:"Read",goal:20,unit:"pages",freq:"daily",days:[],startDate:start,endDate:null},
-    {id:"h3",name:"Morning run",goal:1,unit:"times",freq:"weekly",days:[1,3,5],startDate:start,endDate:null},
-    {id:"h4",name:"Meditate",goal:1,unit:"times",freq:"daily",days:[],startDate:start,endDate:null}
+    {id:"h1",name:"Drink water",type:"count",goal:8,unit:"cups",freq:"daily",days:[],startDate:start,endDate:null},
+    {id:"h2",name:"Read",type:"count",goal:20,unit:"pages",freq:"daily",days:[],startDate:start,endDate:null},
+    {id:"h3",name:"Morning run",type:"binary",goal:1,unit:"times",freq:"weekly",days:[1,3,5],startDate:start,endDate:null},
+    {id:"h4",name:"Meditate",type:"binary",goal:1,unit:"times",freq:"daily",days:[],startDate:start,endDate:null}
   ];
   var comps={};
   habits.forEach(function(h){
@@ -335,15 +342,23 @@ function controlHTML(done,goal){
     (full?ic("check",15,"#fff"):'<span class="ctrlnum display">'+done+'/'+goal+'</span>')+'</span>';
 }
 function todayRow(h,key,i){
-  var g=goalOf(h),done=prog(h,key),full=done>=g,streak=currentStreak(h,key);
+  var g=goalOf(h),done=prog(h,key),full=done>=g,count=isCount(h),streak=currentStreak(h,key);
   var bg=full?hexA(ACCENT,0.10):done>0?hexA(ACCENT,0.05):"var(--card)";
   var bd=full?hexA(ACCENT,0.38):done>0?hexA(ACCENT,0.22):"var(--line)";
-  return '<button class="row anim-in" style="animation-delay:'+(i*55)+'ms;background:'+bg+';border-color:'+bd+';" data-toggle="'+h.id+'">'+
-    controlHTML(done,g)+
-    '<span style="flex:1;min-width:0;"><span class="hname" style="display:block;'+(full?"text-decoration:line-through;text-decoration-color:"+hexA(ACCENT,0.6)+";opacity:.62;":"")+'">'+esc(h.name)+'</span>'+
-    '<span class="hsub" style="display:block;">'+scheduleLabel(h)+(g>1?" · "+done+"/"+g+" "+unitLabel(g,h.unit):"")+'</span></span>'+
-    (streak>0?'<span class="streak display">'+ic("flame",14,"var(--flame)")+' '+streak+'</span>':"")+
-  '</button>';
+  var nameStyle='display:block;'+(full?"text-decoration:line-through;text-decoration-color:"+hexA(ACCENT,0.6)+";opacity:.62;":"");
+  var flame=streak>0?'<span class="streak display" style="font-size:'+(count?12:13)+'px;">'+ic("flame",count?11:14,"var(--flame)")+' '+streak+'</span>':'';
+  if(!count){
+    return '<button class="row anim-in" style="animation-delay:'+(i*55)+'ms;background:'+bg+';border-color:'+bd+';" data-toggle="'+h.id+'">'+
+      controlHTML(done,g)+
+      '<span style="flex:1;min-width:0;"><span class="hname" style="'+nameStyle+'">'+esc(h.name)+'</span>'+
+      '<span class="hsub" style="display:block;">'+scheduleLabel(h)+'</span></span>'+flame+'</button>';
+  }
+  return '<div class="row anim-in" style="animation-delay:'+(i*55)+'ms;background:'+bg+';border-color:'+bd+';">'+
+    '<button class="plainbtn" data-quick="'+h.id+'" aria-label="Toggle complete">'+controlHTML(done,g)+'</button>'+
+    '<span style="flex:1;min-width:0;"><span class="hname" style="'+nameStyle+'">'+esc(h.name)+'</span>'+
+    '<span class="hsub" style="display:flex;align-items:center;gap:7px;"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+done+'/'+g+' '+unitLabel(g,h.unit)+'</span>'+flame+'</span></span>'+
+    '<div class="qstep"><button class="qbtn" data-dec="'+h.id+'"'+(done<=0?' disabled':'')+'>'+ic("minus",15)+'</button>'+
+    '<button class="qbtn" data-inc="'+h.id+'"'+(done>=g?' disabled':'')+'>'+ic("plus",15)+'</button></div></div>';
 }
 
 /* --------------------------------- HABITS ------------------------------- */
@@ -359,7 +374,7 @@ function renderHabits(){
         '<button class="grip" data-grip aria-label="Drag to reorder">'+ic("grip-vertical",18,"#B9B7BE")+'</button>'+
         '<div style="flex:1;min-width:0;">'+
           '<div style="font-size:15.5px;font-weight:600;display:flex;gap:7px;align-items:center;"><span class="hname">'+esc(h.name)+'</span>'+
-            (g>1?'<span class="tag">'+g+' '+unitLabel(g,h.unit)+' / day</span>':'')+(ended?'<span class="tag">ended</span>':'')+'</div>'+
+            (isCount(h)?'<span class="tag">'+g+' '+unitLabel(g,h.unit)+' / day</span>':'')+(ended?'<span class="tag">ended</span>':'')+'</div>'+
           '<div class="hsub">'+scheduleLabel(h)+' · '+dateRangeLabel(h)+'</div>'+
         '</div>'+
         '<button class="iconbtn" data-edit="'+h.id+'">'+ic("pencil",16,"#8C8A93")+'</button>'+
@@ -407,7 +422,7 @@ function renderStats(){
     return '<div class="card anim-in" style="animation-delay:'+(140+i*60)+'ms;padding:16px;">'+
       '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">'+
       '<span class="dot"></span>'+
-      '<div style="flex:1;min-width:0;"><div class="hname" style="font-weight:700;font-size:14.5px;">'+esc(h.name)+(g>1?'<span style="color:var(--sub);font-weight:600;">  ·  '+g+' '+unitLabel(g,h.unit)+' / day</span>':'')+'</div></div>'+
+      '<div style="flex:1;min-width:0;"><div class="hname" style="font-weight:700;font-size:14.5px;">'+esc(h.name)+(isCount(h)?'<span style="color:var(--sub);font-weight:600;">  ·  '+g+' '+unitLabel(g,h.unit)+' / day</span>':'')+'</div></div>'+
       '<div style="display:flex;gap:16px;flex-shrink:0;">'+
         '<div class="mini"><div class="miniv display" style="color:var(--flame);">'+currentStreak(h,todayKey)+'</div><div class="minil">now</div></div>'+
         '<div class="mini"><div class="miniv display">'+bestStreak(h)+'</div><div class="minil">best</div></div>'+
@@ -460,10 +475,16 @@ function postRender(){
 
 /* ============================== interactions ============================= */
 document.addEventListener("click",function(e){
-  var t=e.target.closest("[data-tab],[data-toggle],[data-datenav],[data-add],[data-edit],[data-del]");
+  var t=e.target.closest("[data-tab],[data-toggle],[data-quick],[data-inc],[data-dec],[data-datenav],[data-add],[data-edit],[data-del]");
   if(!t)return;
   if(t.hasAttribute("data-tab")){ state.tab=t.getAttribute("data-tab"); render(); }
-  else if(t.hasAttribute("data-toggle")){ bump(t.getAttribute("data-toggle"), state.selDate); }
+  else if(t.hasAttribute("data-toggle")||t.hasAttribute("data-quick")){
+    var id=t.getAttribute("data-toggle")||t.getAttribute("data-quick");
+    var h=findHabit(id),g=goalOf(h),done=prog(h,state.selDate);
+    setVal(id,state.selDate, done>=g?0:g);
+  }
+  else if(t.hasAttribute("data-inc")){ var iid=t.getAttribute("data-inc"); setVal(iid,state.selDate, prog(findHabit(iid),state.selDate)+1); }
+  else if(t.hasAttribute("data-dec")){ var did=t.getAttribute("data-dec"); setVal(did,state.selDate, prog(findHabit(did),state.selDate)-1); }
   else if(t.hasAttribute("data-datenav")){
     var dir=parseInt(t.getAttribute("data-datenav"),10);
     var next=fmtKey(addDays(parseKey(state.selDate),dir));
@@ -475,11 +496,11 @@ document.addEventListener("click",function(e){
   else if(t.hasAttribute("data-del")){ delHabit(t.getAttribute("data-del")); }
 });
 function findHabit(id){ return state.habits.filter(function(h){return h.id===id;})[0]; }
-function bump(id,key){
+function setVal(id,key,value){
   var h=findHabit(id); if(!h)return; var g=goalOf(h);
+  var v=Math.max(0,Math.min(g,value));
   var m=state.completions[id]||(state.completions[id]={});
-  var n=m[key]===true?g:(m[key]||0); n=n+1; if(n>g)n=0;
-  if(n<=0)delete m[key]; else m[key]=n;
+  if(v<=0)delete m[key]; else m[key]=v;
   save(); render();
 }
 function delHabit(id){
@@ -493,7 +514,8 @@ function delHabit(id){
 function openSheet(initial){
   var s={
     name: initial?initial.name:"",
-    goal: initial?Math.max(1,initial.goal||1):1,
+    type: initial?habitType(initial):"binary",
+    target: initial&&isCount(initial)?goalOf(initial):10,
     unit: initial&&initial.unit?initial.unit:"times",
     freq: initial?initial.freq:"daily",
     days: initial&&initial.days&&initial.days.length?initial.days.slice():[1,2,3,4,5],
@@ -509,16 +531,17 @@ function openSheet(initial){
       '<button class="iconbtn" id="sx">'+ic("x",18,"#8C8A93")+'</button></div>'+
       '<label class="lbl">Name</label>'+
       '<input class="field" id="sname" placeholder="e.g. Drink water" value="'+esc(s.name)+'">'+
-      '<label class="lbl">Daily goal</label>'+
-      '<div class="stepper">'+
-        '<button class="stepbtn" id="gminus">'+ic("minus",18)+'</button>'+
-        '<div style="flex:1;text-align:center;"><div class="goalnum display" id="gnum"></div><div class="goalsub" id="gsub"></div></div>'+
-        '<button class="stepbtn" id="gplus">'+ic("plus",18)+'</button>'+
-      '</div>'+
-      '<div class="goalhelp" id="ghelp"></div>'+
-      '<div id="unitwrap"><label class="lbl">Unit</label>'+
+      '<label class="lbl">Type</label>'+
+      '<div class="seg" id="stype" style="margin-bottom:8px;"><button data-type="binary">Yes / no</button><button data-type="count">Measurable</button></div>'+
+      '<div class="goalhelp" id="binhelp">One tap marks the day done — best for things like “Meditate” or “No sugar”.</div>'+
+      '<div id="countwrap">'+
+        '<label class="lbl">Daily target</label>'+
+        '<div style="display:flex;gap:10px;margin-bottom:12px;">'+
+          '<input type="number" min="1" inputmode="numeric" class="field" id="tinput" style="margin-bottom:0;width:92px;text-align:center;">'+
+          '<input type="text" class="field" id="uinput" placeholder="unit — e.g. pages, minutes" maxlength="16" style="margin-bottom:0;flex:1;">'+
+        '</div>'+
         '<div class="chips" id="uchips">'+UNIT_PRESETS.map(function(u){return '<button class="chip" data-unit="'+u+'">'+u+'</button>';}).join("")+'</div>'+
-        '<input class="field" id="uinput" placeholder="or type your own unit" maxlength="16">'+
+        '<div class="goalhelp" id="ghelp"></div>'+
       '</div>'+
       '<label class="lbl">Repeat</label>'+
       '<div class="seg" id="sseg" style="margin-bottom:12px;"><button data-freq="daily">Every day</button><button data-freq="weekly">Specific days</button></div>'+
@@ -543,20 +566,21 @@ function openSheet(initial){
   var nameEl=back.querySelector("#sname"), errEl=back.querySelector("#serr");
 
   function helpText(){
-    if(s.goal<=1) return "Simple — one tap marks the day done.";
-    var parts=[]; for(var i=1;i<=Math.min(s.goal,5);i++)parts.push(i+"/"+s.goal);
-    return "Each tap logs one "+unitLabel(1,s.unit)+" — "+parts.join(" · ")+(s.goal>5?" …":"");
+    var n=parseInt(s.target,10)||1;
+    return "Log up to "+n+" "+unitLabel(n,s.unit)+" a day. The day completes your streak once you reach "+n+".";
   }
 
   function refresh(){
-    back.querySelector("#gnum").textContent=s.goal;
-    back.querySelector("#gsub").textContent=s.goal===1?"once a day":(unitLabel(s.goal,s.unit)+" a day");
-    back.querySelector("#ghelp").textContent=helpText();
-    back.querySelector("#unitwrap").style.display=s.goal>1?"block":"none";
-    back.querySelectorAll("#uchips .chip").forEach(function(b){ b.classList.toggle("chipon", b.getAttribute("data-unit")===s.unit); });
-    back.querySelector("#uinput").value=s.unit;
-    back.querySelector("#gminus").disabled=s.goal<=1;
-    back.querySelector("#gplus").disabled=s.goal>=20;
+    back.querySelectorAll("#stype button").forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-type")===s.type); });
+    back.querySelector("#stype").style.marginBottom=s.type==="count"?"14px":"8px";
+    back.querySelector("#binhelp").style.display=s.type==="binary"?"block":"none";
+    back.querySelector("#countwrap").style.display=s.type==="count"?"block":"none";
+    if(s.type==="count"){
+      back.querySelector("#tinput").value=s.target;
+      back.querySelector("#uinput").value=s.unit;
+      back.querySelector("#ghelp").textContent=helpText();
+      back.querySelectorAll("#uchips .chip").forEach(function(b){ b.classList.toggle("chipon", b.getAttribute("data-unit")===s.unit); });
+    }
     back.querySelectorAll("#sseg button").forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-freq")===s.freq); });
     back.querySelector("#sdays").style.display=s.freq==="weekly"?"flex":"none";
     back.querySelectorAll("#sdays .day").forEach(function(b){
@@ -569,18 +593,17 @@ function openSheet(initial){
   }
 
   nameEl.addEventListener("input",function(){ s.name=nameEl.value; errEl.style.display="none"; });
+  back.querySelector("#stype").addEventListener("click",function(e){ var b=e.target.closest("[data-type]"); if(!b)return; s.type=b.getAttribute("data-type"); errEl.style.display="none"; refresh(); });
+  back.querySelector("#tinput").addEventListener("input",function(e){ s.target=e.target.value; errEl.style.display="none"; back.querySelector("#ghelp").textContent=helpText(); });
   back.querySelector("#uchips").addEventListener("click",function(e){
     var b=e.target.closest("[data-unit]"); if(!b)return;
     s.unit=b.getAttribute("data-unit"); refresh();
   });
   back.querySelector("#uinput").addEventListener("input",function(e){
     s.unit=e.target.value;
-    back.querySelector("#gsub").textContent=s.goal===1?"once a day":(unitLabel(s.goal,s.unit)+" a day");
     back.querySelector("#ghelp").textContent=helpText();
     back.querySelectorAll("#uchips .chip").forEach(function(b){ b.classList.toggle("chipon", b.getAttribute("data-unit")===s.unit); });
   });
-  back.querySelector("#gminus").addEventListener("click",function(){ s.goal=Math.max(1,s.goal-1); refresh(); });
-  back.querySelector("#gplus").addEventListener("click",function(){ s.goal=Math.min(20,s.goal+1); refresh(); });
   back.querySelector("#sseg").addEventListener("click",function(e){ var b=e.target.closest("[data-freq]"); if(!b)return; s.freq=b.getAttribute("data-freq"); refresh(); });
   back.querySelector("#sdays").addEventListener("click",function(e){
     var b=e.target.closest("[data-day]"); if(!b)return;
@@ -594,9 +617,13 @@ function openSheet(initial){
   back.querySelector("#ssave").addEventListener("click",function(){
     var name=nameEl.value.trim();
     if(!name)return showErr("Give your habit a name.");
+    if(s.type==="count" && (!s.target || Number(s.target)<1))return showErr("Set a target of at least 1.");
     if(s.freq==="weekly" && s.days.length===0)return showErr("Pick at least one day.");
     if(s.hasEnd && s.endDate<s.startDate)return showErr("End date can’t be before the start date.");
-    var habit={ id: initial?initial.id:"h"+Date.now(), name:name, goal:Math.max(1,Math.min(20,s.goal)), unit:(s.unit.trim()||"times"), freq:s.freq, days: s.freq==="weekly"?s.days.slice():[], startDate:s.startDate, endDate: s.hasEnd?s.endDate:null };
+    var habit={ id: initial?initial.id:"h"+Date.now(), name:name, type:s.type,
+      goal: s.type==="count"?Math.max(1,Math.min(1000,Math.round(Number(s.target)||1))):1,
+      unit: s.type==="count"?(s.unit.trim()||"times"):"times",
+      freq:s.freq, days: s.freq==="weekly"?s.days.slice():[], startDate:s.startDate, endDate: s.hasEnd?s.endDate:null };
     if(initial){ for(var i=0;i<state.habits.length;i++){ if(state.habits[i].id===habit.id){ state.habits[i]=habit; break; } } }
     else { state.habits.push(habit); if(!state.completions[habit.id])state.completions[habit.id]={}; }
     save(); close(); render();
@@ -665,7 +692,7 @@ function dragUp(){
 (function init(){
   var data=load();
   if(data){
-    state.habits=data.habits.map(function(h){ h.goal=Math.max(1,h.goal||1); h.unit=h.unit||"times"; return h; });
+    state.habits=data.habits.map(function(h){ h.goal=Math.max(1,h.goal||1); h.unit=h.unit||"times"; h.type=h.type||(h.goal>1?"count":"binary"); return h; });
     state.completions=data.completions||{};
   } else { var s=seed(); state.habits=s.habits; state.completions=s.completions; save(); }
   render();
