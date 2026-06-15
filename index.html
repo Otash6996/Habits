@@ -109,6 +109,10 @@
   .stepbtn{width:42px;height:42px;border-radius:11px;border:1px solid var(--line);background:var(--bg);display:grid;place-items:center;cursor:pointer;color:var(--ink);transition:transform .12s;}
   .stepbtn:active{transform:scale(.92);}
   .stepbtn:disabled{opacity:.35;cursor:default;}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+  .chip{border:1px solid var(--line);background:var(--card);color:var(--sub);border-radius:999px;padding:7px 13px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}
+  .chip:active{transform:scale(.94);}
+  .chipon{background:var(--accent);border-color:var(--accent);color:#fff;}
   .goalnum{font-size:26px;font-weight:700;line-height:1;}
   .goalsub{font-size:11.5px;color:var(--sub);margin-top:3px;}
   .goalhelp{font-size:12px;color:var(--sub);margin:0 0 18px;}
@@ -156,6 +160,17 @@ function relativeLabel(key){
 
 /* ============================ habit + progress =========================== */
 function goalOf(h){return Math.max(1,h.goal||1);}
+var UNIT_PRESETS=["times","sets","reps","pages","cups","glasses","minutes","hours","km","steps"];
+var UNIT_SINGULAR={times:"time",sets:"set",reps:"rep",pages:"page",cups:"cup",glasses:"glass",minutes:"minute",hours:"hour",km:"km",steps:"step",miles:"mile",laps:"lap",chapters:"chapter",liters:"liter",pomodoros:"pomodoro"};
+function unitLabel(n,unit){
+  unit=(unit||"times").trim();
+  if(n===1){
+    var k=unit.toLowerCase();
+    if(UNIT_SINGULAR[k])return UNIT_SINGULAR[k];
+    if(unit.length>2 && unit.charAt(unit.length-1)==="s")return unit.slice(0,-1);
+  }
+  return unit;
+}
 function isScheduled(h,key){
   if(key<h.startDate)return false;
   if(h.endDate && key>h.endDate)return false;
@@ -219,10 +234,10 @@ function save(){ try{ localStorage.setItem(KEY, JSON.stringify({habits:state.hab
 function seed(){
   var start=fmtKey(addDays(new Date(),-34));
   var habits=[
-    {id:"h1",name:"Drink water",goal:8,freq:"daily",days:[],startDate:start,endDate:null},
-    {id:"h2",name:"Read 20 minutes",goal:1,freq:"daily",days:[],startDate:start,endDate:null},
-    {id:"h3",name:"Morning run",goal:1,freq:"weekly",days:[1,3,5],startDate:start,endDate:null},
-    {id:"h4",name:"Meditate",goal:1,freq:"daily",days:[],startDate:start,endDate:null}
+    {id:"h1",name:"Drink water",goal:8,unit:"cups",freq:"daily",days:[],startDate:start,endDate:null},
+    {id:"h2",name:"Read",goal:20,unit:"pages",freq:"daily",days:[],startDate:start,endDate:null},
+    {id:"h3",name:"Morning run",goal:1,unit:"times",freq:"weekly",days:[1,3,5],startDate:start,endDate:null},
+    {id:"h4",name:"Meditate",goal:1,unit:"times",freq:"daily",days:[],startDate:start,endDate:null}
   ];
   var comps={};
   habits.forEach(function(h){
@@ -326,7 +341,7 @@ function todayRow(h,key,i){
   return '<button class="row anim-in" style="animation-delay:'+(i*55)+'ms;background:'+bg+';border-color:'+bd+';" data-toggle="'+h.id+'">'+
     controlHTML(done,g)+
     '<span style="flex:1;min-width:0;"><span class="hname" style="display:block;'+(full?"text-decoration:line-through;text-decoration-color:"+hexA(ACCENT,0.6)+";opacity:.62;":"")+'">'+esc(h.name)+'</span>'+
-    '<span class="hsub" style="display:block;">'+scheduleLabel(h)+(g>1?" · "+done+"/"+g:"")+'</span></span>'+
+    '<span class="hsub" style="display:block;">'+scheduleLabel(h)+(g>1?" · "+done+"/"+g+" "+unitLabel(g,h.unit):"")+'</span></span>'+
     (streak>0?'<span class="streak display">'+ic("flame",14,"var(--flame)")+' '+streak+'</span>':"")+
   '</button>';
 }
@@ -344,7 +359,7 @@ function renderHabits(){
         '<button class="grip" data-grip aria-label="Drag to reorder">'+ic("grip-vertical",18,"#B9B7BE")+'</button>'+
         '<div style="flex:1;min-width:0;">'+
           '<div style="font-size:15.5px;font-weight:600;display:flex;gap:7px;align-items:center;"><span class="hname">'+esc(h.name)+'</span>'+
-            (g>1?'<span class="tag">'+g+'× / day</span>':'')+(ended?'<span class="tag">ended</span>':'')+'</div>'+
+            (g>1?'<span class="tag">'+g+' '+unitLabel(g,h.unit)+' / day</span>':'')+(ended?'<span class="tag">ended</span>':'')+'</div>'+
           '<div class="hsub">'+scheduleLabel(h)+' · '+dateRangeLabel(h)+'</div>'+
         '</div>'+
         '<button class="iconbtn" data-edit="'+h.id+'">'+ic("pencil",16,"#8C8A93")+'</button>'+
@@ -392,7 +407,7 @@ function renderStats(){
     return '<div class="card anim-in" style="animation-delay:'+(140+i*60)+'ms;padding:16px;">'+
       '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">'+
       '<span class="dot"></span>'+
-      '<div style="flex:1;min-width:0;"><div class="hname" style="font-weight:700;font-size:14.5px;">'+esc(h.name)+(g>1?'<span style="color:var(--sub);font-weight:600;">  ·  '+g+'× / day</span>':'')+'</div></div>'+
+      '<div style="flex:1;min-width:0;"><div class="hname" style="font-weight:700;font-size:14.5px;">'+esc(h.name)+(g>1?'<span style="color:var(--sub);font-weight:600;">  ·  '+g+' '+unitLabel(g,h.unit)+' / day</span>':'')+'</div></div>'+
       '<div style="display:flex;gap:16px;flex-shrink:0;">'+
         '<div class="mini"><div class="miniv display" style="color:var(--flame);">'+currentStreak(h,todayKey)+'</div><div class="minil">now</div></div>'+
         '<div class="mini"><div class="miniv display">'+bestStreak(h)+'</div><div class="minil">best</div></div>'+
@@ -479,6 +494,7 @@ function openSheet(initial){
   var s={
     name: initial?initial.name:"",
     goal: initial?Math.max(1,initial.goal||1):1,
+    unit: initial&&initial.unit?initial.unit:"times",
     freq: initial?initial.freq:"daily",
     days: initial&&initial.days&&initial.days.length?initial.days.slice():[1,2,3,4,5],
     startDate: initial?initial.startDate:fmtKey(new Date()),
@@ -500,6 +516,10 @@ function openSheet(initial){
         '<button class="stepbtn" id="gplus">'+ic("plus",18)+'</button>'+
       '</div>'+
       '<div class="goalhelp" id="ghelp"></div>'+
+      '<div id="unitwrap"><label class="lbl">Unit</label>'+
+        '<div class="chips" id="uchips">'+UNIT_PRESETS.map(function(u){return '<button class="chip" data-unit="'+u+'">'+u+'</button>';}).join("")+'</div>'+
+        '<input class="field" id="uinput" placeholder="or type your own unit" maxlength="16">'+
+      '</div>'+
       '<label class="lbl">Repeat</label>'+
       '<div class="seg" id="sseg" style="margin-bottom:12px;"><button data-freq="daily">Every day</button><button data-freq="weekly">Specific days</button></div>'+
       '<div class="days" id="sdays">'+WEEK.map(function(w,i){return '<button class="day" data-day="'+i+'">'+w+'</button>';}).join("")+'</div>'+
@@ -522,13 +542,19 @@ function openSheet(initial){
 
   var nameEl=back.querySelector("#sname"), errEl=back.querySelector("#serr");
 
+  function helpText(){
+    if(s.goal<=1) return "Simple — one tap marks the day done.";
+    var parts=[]; for(var i=1;i<=Math.min(s.goal,5);i++)parts.push(i+"/"+s.goal);
+    return "Each tap logs one "+unitLabel(1,s.unit)+" — "+parts.join(" · ")+(s.goal>5?" …":"");
+  }
+
   function refresh(){
-    back.querySelector("#gnum").textContent=s.goal+"×";
-    back.querySelector("#gsub").textContent=s.goal===1?"once a day":"times a day";
-    var help;
-    if(s.goal<=1) help="Simple — one tap marks the day done.";
-    else { var parts=[]; for(var i=1;i<=Math.min(s.goal,6);i++)parts.push(i+"/"+s.goal); help="Tap to log each part: "+parts.join(" · ")+(s.goal>6?" …":""); }
-    back.querySelector("#ghelp").textContent=help;
+    back.querySelector("#gnum").textContent=s.goal;
+    back.querySelector("#gsub").textContent=s.goal===1?"once a day":(unitLabel(s.goal,s.unit)+" a day");
+    back.querySelector("#ghelp").textContent=helpText();
+    back.querySelector("#unitwrap").style.display=s.goal>1?"block":"none";
+    back.querySelectorAll("#uchips .chip").forEach(function(b){ b.classList.toggle("chipon", b.getAttribute("data-unit")===s.unit); });
+    back.querySelector("#uinput").value=s.unit;
     back.querySelector("#gminus").disabled=s.goal<=1;
     back.querySelector("#gplus").disabled=s.goal>=20;
     back.querySelectorAll("#sseg button").forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-freq")===s.freq); });
@@ -543,6 +569,16 @@ function openSheet(initial){
   }
 
   nameEl.addEventListener("input",function(){ s.name=nameEl.value; errEl.style.display="none"; });
+  back.querySelector("#uchips").addEventListener("click",function(e){
+    var b=e.target.closest("[data-unit]"); if(!b)return;
+    s.unit=b.getAttribute("data-unit"); refresh();
+  });
+  back.querySelector("#uinput").addEventListener("input",function(e){
+    s.unit=e.target.value;
+    back.querySelector("#gsub").textContent=s.goal===1?"once a day":(unitLabel(s.goal,s.unit)+" a day");
+    back.querySelector("#ghelp").textContent=helpText();
+    back.querySelectorAll("#uchips .chip").forEach(function(b){ b.classList.toggle("chipon", b.getAttribute("data-unit")===s.unit); });
+  });
   back.querySelector("#gminus").addEventListener("click",function(){ s.goal=Math.max(1,s.goal-1); refresh(); });
   back.querySelector("#gplus").addEventListener("click",function(){ s.goal=Math.min(20,s.goal+1); refresh(); });
   back.querySelector("#sseg").addEventListener("click",function(e){ var b=e.target.closest("[data-freq]"); if(!b)return; s.freq=b.getAttribute("data-freq"); refresh(); });
@@ -560,7 +596,7 @@ function openSheet(initial){
     if(!name)return showErr("Give your habit a name.");
     if(s.freq==="weekly" && s.days.length===0)return showErr("Pick at least one day.");
     if(s.hasEnd && s.endDate<s.startDate)return showErr("End date can’t be before the start date.");
-    var habit={ id: initial?initial.id:"h"+Date.now(), name:name, goal:Math.max(1,Math.min(20,s.goal)), freq:s.freq, days: s.freq==="weekly"?s.days.slice():[], startDate:s.startDate, endDate: s.hasEnd?s.endDate:null };
+    var habit={ id: initial?initial.id:"h"+Date.now(), name:name, goal:Math.max(1,Math.min(20,s.goal)), unit:(s.unit.trim()||"times"), freq:s.freq, days: s.freq==="weekly"?s.days.slice():[], startDate:s.startDate, endDate: s.hasEnd?s.endDate:null };
     if(initial){ for(var i=0;i<state.habits.length;i++){ if(state.habits[i].id===habit.id){ state.habits[i]=habit; break; } } }
     else { state.habits.push(habit); if(!state.completions[habit.id])state.completions[habit.id]={}; }
     save(); close(); render();
@@ -629,7 +665,7 @@ function dragUp(){
 (function init(){
   var data=load();
   if(data){
-    state.habits=data.habits.map(function(h){ h.goal=Math.max(1,h.goal||1); return h; });
+    state.habits=data.habits.map(function(h){ h.goal=Math.max(1,h.goal||1); h.unit=h.unit||"times"; return h; });
     state.completions=data.completions||{};
   } else { var s=seed(); state.habits=s.habits; state.completions=s.completions; save(); }
   render();
